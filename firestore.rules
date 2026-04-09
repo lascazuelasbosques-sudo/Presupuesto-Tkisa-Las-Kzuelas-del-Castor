@@ -1,0 +1,126 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Assumed Data Model
+    // ===============================================================
+    //
+    // Collection: ingredients
+    // Fields:
+    //   - name: string (required, 1-100 chars)
+    //   - unit: string (required, enum: kg, g, lt, ml, pza, manojo)
+    //
+    // Collection: recipes
+    // Fields:
+    //   - name: string (required, 1-100 chars)
+    //   - category: string (required, 1-50 chars)
+    //   - ingredients: list (required, max 50 items)
+    //     - ingredientId: string
+    //     - amountPerKg: number (positive)
+    //
+    // Collection: quotes
+    // Fields:
+    //   - clientName: string (required, 1-100 chars)
+    //   - peopleCount: number (required, positive)
+    //   - userId: string (required, matches auth.uid)
+    //   - date: string (ISO 8601)
+    //   - items: list
+    //   - totalCost: number
+    //   - notes: string (optional, max 1000 chars)
+    //
+    // ===============================================================
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() && 
+        (request.auth.token.email == "lascazuelasbosques@gmail.com" && request.auth.token.email_verified == true);
+    }
+
+    function isValidString(val, min, max) {
+      return val is string && val.size() >= min && val.size() <= max;
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidIngredient(data) {
+      return data.keys().hasAll(['name', 'unit']) &&
+             data.keys().hasOnly(['name', 'unit']) &&
+             isValidString(data.name, 1, 100) &&
+             data.unit in ['kg', 'g', 'lt', 'ml', 'pza', 'manojo', 'pqte', 'lata', 'frasco'];
+    }
+
+    function isValidCategory(data) {
+      return data.keys().hasAll(['name']) &&
+             data.keys().hasOnly(['name', 'description']) &&
+             isValidString(data.name, 1, 50);
+    }
+
+    function isValidRecipe(data) {
+      return data.keys().hasAll(['name', 'categoryId', 'ingredients']) &&
+             data.keys().hasOnly(['name', 'categoryId', 'ingredients']) &&
+             isValidString(data.name, 1, 100) &&
+             isValidString(data.categoryId, 1, 50) &&
+             data.ingredients is list &&
+             data.ingredients.size() <= 50;
+    }
+
+    function isValidQuote(data) {
+      return data.keys().hasAll(['clientName', 'peopleCount', 'userId']) &&
+             data.peopleCount is number && data.peopleCount > 0 &&
+             data.userId == request.auth.uid &&
+             isValidString(data.clientName, 1, 100) &&
+             (!('notes' in data) || isValidString(data.notes, 0, 1000));
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /ingredients/{ingredientId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidIngredient(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /categories/{categoryId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidCategory(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /recipes/{recipeId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAdmin() && isValidRecipe(request.resource.data);
+      allow delete: if isAdmin();
+    }
+
+    match /quotes/{quoteId} {
+      allow read: if isAuthenticated() && resource.data.userId == request.auth.uid;
+      allow create: if isAuthenticated() && isValidQuote(request.resource.data);
+      allow update: if isAuthenticated() && isOwner(resource.data.userId) && isValidQuote(request.resource.data);
+      allow delete: if isAuthenticated() && isOwner(resource.data.userId);
+    }
+
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

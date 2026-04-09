@@ -1,0 +1,87 @@
+{
+  "entities": {
+    "ingredient": {
+      "title": "Ingredient",
+      "description": "A basic food item used in recipes",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the ingredient" },
+        "unit": { "type": "string", "enum": ["kg", "g", "lt", "ml", "pza", "manojo"], "description": "Unit of measurement" }
+      },
+      "required": ["name", "unit"]
+    },
+    "category": {
+      "title": "Category",
+      "description": "Food category for recipes",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "description": { "type": "string" }
+      },
+      "required": ["name"]
+    },
+    "recipe": {
+      "title": "Recipe",
+      "description": "A dish with specific ingredient proportions per kg",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string", "description": "Name of the dish" },
+        "categoryId": { "type": "string", "description": "Reference to a category" },
+        "ingredients": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "ingredientId": { "type": "string" },
+              "amountPerKg": { "type": "number" }
+            },
+            "required": ["ingredientId", "amountPerKg"]
+          }
+        }
+      },
+      "required": ["name", "categoryId", "ingredients"]
+    },
+    "quote": {
+      "title": "Quote",
+      "description": "A budget or event estimation",
+      "type": "object",
+      "properties": {
+        "clientName": { "type": "string" },
+        "date": { "type": "string", "format": "date-time" },
+        "peopleCount": { "type": "number" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "recipeId": { "type": "string" },
+              "kg": { "type": "number" }
+            }
+          }
+        },
+        "totalCost": { "type": "number" },
+        "notes": { "type": "string" },
+        "userId": { "type": "string" }
+      },
+      "required": ["clientName", "peopleCount", "userId"]
+    }
+  },
+  "firestore": {
+    "/ingredients/{ingredientId}": {
+      "schema": "ingredient",
+      "description": "Global catalog of ingredients"
+    },
+    "/categories/{categoryId}": {
+      "schema": "category",
+      "description": "Global catalog of categories"
+    },
+    "/recipes/{recipeId}": {
+      "schema": "recipe",
+      "description": "Global catalog of recipes"
+    },
+    "/quotes/{quoteId}": {
+      "schema": "quote",
+      "description": "User specific quotes and budgets"
+    }
+  }
+}
