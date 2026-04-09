@@ -12,12 +12,14 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 interface Props {
   ingredients: Ingredient[];
   recipes: Recipe[];
+  isAdmin?: boolean;
   onAddIngredient: (ingredient: Ingredient) => void;
   onUpdateIngredient: (ingredient: Ingredient) => void;
   onDeleteIngredient: (id: string) => void;
+  onSeedDatabase?: () => void;
 }
 
-export function IngredientManager({ ingredients, recipes, onAddIngredient, onUpdateIngredient, onDeleteIngredient }: Props) {
+export function IngredientManager({ ingredients, recipes, isAdmin, onAddIngredient, onUpdateIngredient, onDeleteIngredient, onSeedDatabase }: Props) {
   const sortedIngredients = [...ingredients].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [isEditOpen, setIsEditOpen] = useState(false);
@@ -95,6 +97,11 @@ export function IngredientManager({ ingredients, recipes, onAddIngredient, onUpd
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
+          {isAdmin && onSeedDatabase && (
+            <Button variant="outline" onClick={onSeedDatabase} className="w-full sm:w-auto">
+              Actualizar Precios (Central en Línea)
+            </Button>
+          )}
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>
             <Button className="gap-2 w-full sm:w-auto" onClick={openAddDialog}>
               <Plus className="w-4 h-4" /> Nuevo Ingrediente

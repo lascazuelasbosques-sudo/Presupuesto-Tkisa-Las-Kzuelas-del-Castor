@@ -339,10 +339,17 @@ export default function App() {
       for (const ing of INITIAL_INGREDIENTS) {
         const ingQuery = query(collection(db, 'ingredients'), where('name', '==', ing.name));
         const ingSnapshot = await getDocs(ingQuery);
+        
         if (ingSnapshot.empty) {
+          // Add if doesn't exist
           const { id, ...data } = ing;
           const newDocRef = doc(collection(db, 'ingredients'));
           batch.set(newDocRef, data);
+        } else {
+          // FORCE UPDATE if exists
+          const existingDoc = ingSnapshot.docs[0];
+          const { id, ...data } = ing;
+          batch.update(existingDoc.ref, data);
         }
       }
 
@@ -446,9 +453,11 @@ export default function App() {
                 <IngredientManager 
                   ingredients={ingredients} 
                   recipes={recipes}
+                  isAdmin={user?.email === "lascazuelasbosques@gmail.com"}
                   onAddIngredient={handleAddIngredient}
                   onUpdateIngredient={handleUpdateIngredient}
                   onDeleteIngredient={handleDeleteIngredient}
+                  onSeedDatabase={handleSeedDatabase}
                 />
               </TabsContent>
               <TabsContent value="categories" className="mt-0">
@@ -458,7 +467,6 @@ export default function App() {
                   onAddCategory={handleAddCategory}
                   onUpdateCategory={handleUpdateCategory}
                   onDeleteCategory={handleDeleteCategory}
-                  onSeedDatabase={handleSeedDatabase}
                 />
               </TabsContent>
             </motion.div>

@@ -14,10 +14,9 @@ interface Props {
   onAddCategory: (category: Category) => void;
   onUpdateCategory: (category: Category) => void;
   onDeleteCategory: (id: string) => void;
-  onSeedDatabase: () => void;
 }
 
-export function CategoryManager({ categories, isAdmin, onAddCategory, onUpdateCategory, onDeleteCategory, onSeedDatabase }: Props) {
+export function CategoryManager({ categories, isAdmin, onAddCategory, onUpdateCategory, onDeleteCategory }: Props) {
   const sortedCategories = [...categories].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
@@ -61,11 +60,6 @@ export function CategoryManager({ categories, isAdmin, onAddCategory, onUpdateCa
       <div className="flex justify-between items-center">
         <h2 className="text-2xl font-bold">Gestión de Categorías</h2>
         <div className="flex gap-2">
-          {isAdmin && (
-            <Button variant="outline" onClick={onSeedDatabase}>
-              Cargar Datos Iniciales
-            </Button>
-          )}
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <Button className="gap-2" onClick={openAddDialog}>
               <Plus className="w-4 h-4" /> Nueva Categoría
