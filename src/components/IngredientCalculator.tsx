@@ -105,27 +105,39 @@ export function IngredientCalculator({ recipes, ingredients, categories }: Props
               <TableHeader>
                 <TableRow>
                   <TableHead>Ingrediente</TableHead>
-                  <TableHead className="text-right">Cantidad Total</TableHead>
+                  <TableHead className="text-right">Cantidad</TableHead>
                   <TableHead>Unidad</TableHead>
+                  <TableHead className="text-right">Costo Est.</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sortedCalculatedIngredients.map(item => {
                   const details = getIngredientDetails(item.ingredientId, ingredients);
+                  const itemCost = details ? (details.costPerUnit || 0) * item.totalAmount : 0;
                   return (
                     <TableRow key={item.ingredientId}>
                       <TableCell className="font-medium">{details?.name || 'Desconocido'}</TableCell>
                       <TableCell className="text-right">{item.totalAmount.toLocaleString()}</TableCell>
                       <TableCell>{details?.unit || '-'}</TableCell>
+                      <TableCell className="text-right font-mono text-sm">
+                        ${itemCost.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                      </TableCell>
                     </TableRow>
                   );
                 })}
-                <TableRow className="bg-muted/50 font-bold">
-                  <TableCell>PESO TOTAL DE INSUMOS</TableCell>
-                  <TableCell className="text-right">
-                    {calculatedIngredients.reduce((sum, item) => sum + item.totalAmount, 0).toLocaleString()}
+                <TableRow className="bg-primary/5 font-bold text-primary">
+                  <TableCell colSpan={3}>INVERSIÓN TOTAL ESTIMADA</TableCell>
+                  <TableCell className="text-right text-lg">
+                    ${sortedCalculatedIngredients.reduce((sum, item) => {
+                      const details = getIngredientDetails(item.ingredientId, ingredients);
+                      return sum + (details ? (details.costPerUnit || 0) * item.totalAmount : 0);
+                    }, 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                   </TableCell>
-                  <TableCell>-</TableCell>
+                </TableRow>
+                <TableRow className="bg-muted/30 text-xs text-muted-foreground italic">
+                  <TableCell colSpan={4}>
+                    * Precios de referencia basados en la Central de Abastos Ecatepec.
+                  </TableCell>
                 </TableRow>
               </TableBody>
             </Table>

@@ -25,6 +25,7 @@ export function IngredientManager({ ingredients, recipes, onAddIngredient, onUpd
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
   const [newName, setNewName] = useState('');
   const [newUnit, setNewUnit] = useState<Unit>('kg');
+  const [newCost, setNewCost] = useState<number | string>(0);
   const [searchQuery, setSearchQuery] = useState('');
 
   const filteredIngredients = sortedIngredients.filter(ing => 
@@ -35,6 +36,7 @@ export function IngredientManager({ ingredients, recipes, onAddIngredient, onUpd
     setEditingIngredient(null);
     setNewName('');
     setNewUnit('kg');
+    setNewCost(0);
     setIsAddOpen(true);
   };
 
@@ -42,6 +44,7 @@ export function IngredientManager({ ingredients, recipes, onAddIngredient, onUpd
     setEditingIngredient(ingredient);
     setNewName(ingredient.name);
     setNewUnit(ingredient.unit);
+    setNewCost(ingredient.costPerUnit || 0);
     setIsAddOpen(true);
   };
 
@@ -51,7 +54,8 @@ export function IngredientManager({ ingredients, recipes, onAddIngredient, onUpd
     const ingredientData: Ingredient = {
       id: editingIngredient ? editingIngredient.id : Math.random().toString(36).substr(2, 9),
       name: newName,
-      unit: newUnit
+      unit: newUnit,
+      costPerUnit: typeof newCost === 'string' ? parseFloat(newCost) || 0 : newCost
     };
     
     if (editingIngredient) {
@@ -133,6 +137,19 @@ export function IngredientManager({ ingredients, recipes, onAddIngredient, onUpd
                   </SelectContent>
                 </Select>
               </div>
+              <div className="space-y-2">
+                <Label>Costo por Unidad ($)</Label>
+                <Input 
+                  type="number" 
+                  step="0.01" 
+                  value={newCost} 
+                  onChange={e => setNewCost(e.target.value)} 
+                  placeholder="Ej. 125.50" 
+                />
+                <p className="text-[10px] text-muted-foreground italic">
+                  * Costo estimado por {newUnit} (Central de Abastos Ecatepec)
+                </p>
+              </div>
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsAddOpen(false)}>Cancelar</Button>
@@ -149,14 +166,15 @@ export function IngredientManager({ ingredients, recipes, onAddIngredient, onUpd
             <TableHeader>
               <TableRow>
                 <TableHead>Nombre</TableHead>
-                <TableHead>Unidad de Medida</TableHead>
+                <TableHead>Unidad</TableHead>
+                <TableHead>Costo Unit.</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
               {filteredIngredients.length === 0 && (
                 <TableRow>
-                  <TableCell colSpan={3} className="text-center py-8 text-muted-foreground italic">
+                  <TableCell colSpan={4} className="text-center py-8 text-muted-foreground italic">
                     {searchQuery ? 'No se encontraron ingredientes que coincidan con la búsqueda.' : 'No hay ingredientes registrados aún.'}
                   </TableCell>
                 </TableRow>
@@ -174,6 +192,9 @@ export function IngredientManager({ ingredients, recipes, onAddIngredient, onUpd
                       )}
                     </TableCell>
                     <TableCell>{ingredient.unit}</TableCell>
+                    <TableCell className="font-mono text-sm">
+                      ${(ingredient.costPerUnit || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button 
