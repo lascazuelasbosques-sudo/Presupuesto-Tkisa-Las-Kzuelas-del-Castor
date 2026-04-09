@@ -5,8 +5,8 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Recipe, Ingredient, Category } from '@/src/types';
-import { calculateIngredientsForKg, getIngredientDetails } from '@/src/lib/calculations';
-import { ChefHat, Scale } from 'lucide-react';
+import { calculateIngredientsForKg, getIngredientDetails, calculateKgForPeople, calculatePeopleForKg } from '@/src/lib/calculations';
+import { ChefHat, Scale, Users } from 'lucide-react';
 
 interface Props {
   recipes: Recipe[];
@@ -44,7 +44,7 @@ export function IngredientCalculator({ recipes, ingredients, categories }: Props
           </CardDescription>
         </CardHeader>
         <CardContent className="pt-6">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="space-y-2">
               <Label htmlFor="recipe">Guisado</Label>
               <Select value={selectedRecipeId} onValueChange={setSelectedRecipeId}>
@@ -73,6 +73,23 @@ export function IngredientCalculator({ recipes, ingredients, categories }: Props
                   })}
                 </SelectContent>
               </Select>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="people">Personas</Label>
+              <div className="relative">
+                <Input 
+                  id="people" 
+                  type="number" 
+                  min="1" 
+                  value={Math.round(calculatePeopleForKg(numericKg))} 
+                  onChange={(e) => {
+                    const p = parseInt(e.target.value) || 0;
+                    setKg(calculateKgForPeople(p).toFixed(2));
+                  }}
+                  className="pl-10"
+                />
+                <Users className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
+              </div>
             </div>
             <div className="space-y-2">
               <Label htmlFor="kg">Kilos a preparar</Label>
