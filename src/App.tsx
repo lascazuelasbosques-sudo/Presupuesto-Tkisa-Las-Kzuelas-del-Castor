@@ -319,42 +319,68 @@ export default function App() {
       return;
     }
 
-    const toastId = toast.loading('Cargando datos iniciales...');
+    const toastId = toast.loading('Sincronizando precios con Central en Línea...');
 
     try {
       const batch = writeBatch(db);
+      
+      // Fetch all current ingredients to do a case-insensitive comparison
+      const currentIngsSnapshot = await getDocs(collection(db, 'ingredients'));
+      const currentIngs = currentIngsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name?.toLowerCase().trim(),
+        ref: doc.ref
+      }));
+
+      // Fetch all current categories
+      const currentCatsSnapshot = await getDocs(collection(db, 'categories'));
+      const currentCats = currentCatsSnapshot.docs.map(doc => ({
+        id: doc.id,
+        name: doc.data().name?.toLowerCase().trim(),
+        ref: doc.ref
+      }));
 
       // Seed Categories
       for (const cat of INITIAL_CATEGORIES) {
-        const catQuery = query(collection(db, 'categories'), where('name', '==', cat.name));
-        const catSnapshot = await getDocs(catQuery);
-        if (catSnapshot.empty) {
+        const normalizedName = cat.name.toLowerCase().trim();
+        const existingCat = currentCats.find(c => c.name === normalizedName);
+        
+        if (!existingCat) {
           const { id, ...data } = cat;
           const newDocRef = doc(collection(db, 'categories'));
           batch.set(newDocRef, data);
         }
       }
 
-      // Seed Ingredients
+      // Seed Ingredients with Force Update
+      let updatedCount = 0;
+      let addedCount = 0;
+
       for (const ing of INITIAL_INGREDIENTS) {
-        const ingQuery = query(collection(db, 'ingredients'), where('name', '==', ing.name));
-        const ingSnapshot = await getDocs(ingQuery);
+        const normalizedName = ing.name.toLowerCase().trim();
+        const existingIng = currentIngs.find(i => i.name === normalizedName);
         
-        if (ingSnapshot.empty) {
-          // Add if doesn't exist
-          const { id, ...data } = ing;
-          const newDocRef = doc(collection(db, 'ingredients'));
-          batch.set(newDocRef, data);
+        const ingredientData = {
+          name: ing.name,
+          unit: ing.unit,
+          costPerUnit: ing.costPerUnit,
+          lastUpdated: new Date().toISOString()
+        };
+
+        if (existingIng) {
+          // Update existing ingredient
+          batch.update(existingIng.ref, ingredientData);
+          updatedCount++;
         } else {
-          // FORCE UPDATE if exists
-          const existingDoc = ingSnapshot.docs[0];
-          const { id, ...data } = ing;
-          batch.update(existingDoc.ref, data);
+          // Add new ingredient
+          const newDocRef = doc(collection(db, 'ingredients'));
+          batch.set(newDocRef, ingredientData);
+          addedCount++;
         }
       }
 
       await batch.commit();
-      toast.success('Base de datos inicializada correctamente', { id: toastId });
+      toast.success(`Sincronización completa: ${updatedCount} actualizados, ${addedCount} nuevos.`, { id: toastId });
     } catch (error) {
       handleFirestoreError(error, OperationType.WRITE, 'batch-seed');
     }

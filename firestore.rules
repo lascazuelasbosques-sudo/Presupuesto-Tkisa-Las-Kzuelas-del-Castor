@@ -62,10 +62,11 @@ service cloud.firestore {
 
     function isValidIngredient(data) {
       return data.keys().hasAll(['name', 'unit']) &&
-             data.keys().hasOnly(['name', 'unit', 'costPerUnit']) &&
+             data.keys().hasOnly(['name', 'unit', 'costPerUnit', 'lastUpdated']) &&
              isValidString(data.name, 1, 100) &&
              data.unit in ['kg', 'g', 'lt', 'ml', 'pza', 'manojo', 'pqte', 'lata', 'frasco'] &&
-             (!('costPerUnit' in data) || data.costPerUnit is number);
+             (!('costPerUnit' in data) || data.costPerUnit is number) &&
+             (!('lastUpdated' in data) || data.lastUpdated is string);
     }
 
     function isValidCategory(data) {

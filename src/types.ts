@@ -5,6 +5,7 @@ export interface Ingredient {
   name: string;
   unit: Unit;
   costPerUnit: number;
+  lastUpdated?: string;
 }
 
 export interface RecipeIngredient {

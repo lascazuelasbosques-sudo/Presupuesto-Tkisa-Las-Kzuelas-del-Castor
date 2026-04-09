@@ -57,7 +57,8 @@ export function IngredientManager({ ingredients, recipes, isAdmin, onAddIngredie
       id: editingIngredient ? editingIngredient.id : Math.random().toString(36).substr(2, 9),
       name: newName,
       unit: newUnit,
-      costPerUnit: typeof newCost === 'string' ? parseFloat(newCost) || 0 : newCost
+      costPerUnit: typeof newCost === 'string' ? parseFloat(newCost) || 0 : newCost,
+      lastUpdated: new Date().toISOString()
     };
     
     if (editingIngredient) {
@@ -175,6 +176,7 @@ export function IngredientManager({ ingredients, recipes, isAdmin, onAddIngredie
                 <TableHead>Nombre</TableHead>
                 <TableHead>Unidad</TableHead>
                 <TableHead>Costo Unit.</TableHead>
+                <TableHead>Última Act.</TableHead>
                 <TableHead className="text-right">Acciones</TableHead>
               </TableRow>
             </TableHeader>
@@ -201,6 +203,9 @@ export function IngredientManager({ ingredients, recipes, isAdmin, onAddIngredie
                     <TableCell>{ingredient.unit}</TableCell>
                     <TableCell className="font-mono text-sm">
                       ${(ingredient.costPerUnit || 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                    </TableCell>
+                    <TableCell className="text-[10px] text-muted-foreground">
+                      {ingredient.lastUpdated ? new Date(ingredient.lastUpdated).toLocaleDateString('es-MX', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}
                     </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
