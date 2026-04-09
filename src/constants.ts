@@ -30,7 +30,7 @@ export const INITIAL_INGREDIENTS: Ingredient[] = [
   { id: 'i17', name: 'Nuggets de pollo', unit: 'pqte', costPerUnit: 98 },
   
   // Vegetales y Frutas (Precios Central en Línea - Servicio a Domicilio)
-  { id: 'i18', name: 'Jitomate', unit: 'kg', costPerUnit: 36 },
+  { id: 'i18', name: 'Jitomate Saladet chico', unit: 'kg', costPerUnit: 26 },
   { id: 'i19', name: 'Cebolla blanca', unit: 'kg', costPerUnit: 28 },
   { id: 'i20', name: 'Chile pimiento morrón', unit: 'pza', costPerUnit: 18 },
   { id: 'i21', name: 'Tomate verde', unit: 'kg', costPerUnit: 34 },

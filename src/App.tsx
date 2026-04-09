@@ -85,11 +85,20 @@ export default function App() {
   const handleLogin = async () => {
     try {
       const provider = new GoogleAuthProvider();
-      await signInWithPopup(auth, provider);
-      toast.success('Sesión iniciada correctamente');
-    } catch (error) {
+      provider.setCustomParameters({ prompt: 'select_account' });
+      const result = await signInWithPopup(auth, provider);
+      if (result.user) {
+        toast.success('Sesión iniciada correctamente');
+      }
+    } catch (error: any) {
       console.error("Login error:", error);
-      toast.error('Error al iniciar sesión');
+      if (error.code === 'auth/popup-blocked') {
+        toast.error('El navegador bloqueó la ventana emergente. Por favor, permite las ventanas emergentes para este sitio.');
+      } else if (error.code === 'auth/unauthorized-domain') {
+        toast.error('Dominio no autorizado. Debes agregar este dominio en la consola de Firebase (Authentication > Settings > Authorized Domains).');
+      } else {
+        toast.error('Error al iniciar sesión: ' + (error.message || 'Error desconocido'));
+      }
     }
   };
 
