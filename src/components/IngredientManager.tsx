@@ -100,7 +100,7 @@ export function IngredientManager({ ingredients, recipes, isAdmin, onAddIngredie
           </div>
           {isAdmin && onSeedDatabase && (
             <Button variant="outline" onClick={onSeedDatabase} className="w-full sm:w-auto">
-              Actualizar Precios (Central en Línea)
+              Actualizar Precios (Ké Va Llevar)
             </Button>
           )}
           <Dialog open={isAddOpen} onOpenChange={setIsAddOpen}>

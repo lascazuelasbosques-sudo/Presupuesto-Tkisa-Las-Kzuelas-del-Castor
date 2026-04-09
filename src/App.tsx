@@ -319,7 +319,7 @@ export default function App() {
       return;
     }
 
-    const toastId = toast.loading('Sincronizando precios con Central en Línea...');
+    const toastId = toast.loading('Sincronizando precios con Ké Va Llevar...');
 
     try {
       // Fetch all current ingredients to do a case-insensitive comparison
