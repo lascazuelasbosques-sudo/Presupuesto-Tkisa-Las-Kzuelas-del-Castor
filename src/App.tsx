@@ -13,8 +13,36 @@ import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
 import { auth, db } from './firebase';
 import { onAuthStateChanged, signInWithPopup, GoogleAuthProvider, signOut, User as FirebaseUser } from 'firebase/auth';
-import { collection, onSnapshot, addDoc, deleteDoc, doc, getDocFromServer, updateDoc } from 'firebase/firestore';
+import { collection, onSnapshot, addDoc, deleteDoc, doc, getDocFromServer, updateDoc, writeBatch, getDocs, query, where } from 'firebase/firestore';
 import { Button } from '@/components/ui/button';
+
+enum OperationType {
+  CREATE = 'create',
+  UPDATE = 'update',
+  DELETE = 'delete',
+  LIST = 'list',
+  GET = 'get',
+  WRITE = 'write',
+}
+
+interface FirestoreErrorInfo {
+  error: string;
+  operationType: OperationType;
+  path: string | null;
+  authInfo: {
+    userId: string | undefined;
+    email: string | undefined | null;
+    emailVerified: boolean | undefined;
+    isAnonymous: boolean | undefined;
+    tenantId: string | undefined | null;
+    providerInfo: {
+      providerId: string;
+      displayName: string | null;
+      email: string | null;
+      photoUrl: string | null;
+    }[];
+  }
+}
 
 export default function App() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
@@ -23,6 +51,36 @@ export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('calc');
+
+  const handleFirestoreError = (error: any, operationType: OperationType, path: string | null) => {
+    const errInfo: FirestoreErrorInfo = {
+      error: error instanceof Error ? error.message : String(error),
+      authInfo: {
+        userId: auth.currentUser?.uid,
+        email: auth.currentUser?.email,
+        emailVerified: auth.currentUser?.emailVerified,
+        isAnonymous: auth.currentUser?.isAnonymous,
+        tenantId: auth.currentUser?.tenantId,
+        providerInfo: auth.currentUser?.providerData.map(provider => ({
+          providerId: provider.providerId,
+          displayName: provider.displayName,
+          email: provider.email,
+          photoUrl: provider.photoURL
+        })) || []
+      },
+      operationType,
+      path
+    };
+    console.error('Firestore Error: ', JSON.stringify(errInfo));
+    
+    if (error.code === 'permission-denied') {
+      toast.error('Permiso denegado en Firestore. Verifica que seas administrador.');
+    } else {
+      toast.error('Error en la base de datos: ' + (error.message || 'Error desconocido'));
+    }
+    
+    throw new Error(JSON.stringify(errInfo));
+  };
 
   // Test connection
   useEffect(() => {
@@ -58,21 +116,21 @@ export default function App() {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Recipe));
       setRecipes(data);
     }, (error) => {
-      console.error("Error fetching recipes:", error);
+      handleFirestoreError(error, OperationType.LIST, 'recipes');
     });
 
     const unsubIngredients = onSnapshot(collection(db, 'ingredients'), (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Ingredient));
       setIngredients(data);
     }, (error) => {
-      console.error("Error fetching ingredients:", error);
+      handleFirestoreError(error, OperationType.LIST, 'ingredients');
     });
 
     const unsubCategories = onSnapshot(collection(db, 'categories'), (snapshot) => {
       const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Category));
       setCategories(data);
     }, (error) => {
-      console.error("Error fetching categories:", error);
+      handleFirestoreError(error, OperationType.LIST, 'categories');
     });
 
     return () => {
@@ -122,7 +180,7 @@ export default function App() {
       await addDoc(collection(db, 'recipes'), data);
       toast.success('Receta guardada en la nube');
     } catch (error) {
-      toast.error('Error al guardar receta en la nube');
+      handleFirestoreError(error, OperationType.CREATE, 'recipes');
     }
   };
 
@@ -137,7 +195,7 @@ export default function App() {
       await updateDoc(doc(db, 'recipes', id), data);
       toast.success('Receta actualizada en la nube');
     } catch (error) {
-      toast.error('Error al actualizar receta');
+      handleFirestoreError(error, OperationType.UPDATE, `recipes/${recipe.id}`);
     }
   };
 
@@ -149,9 +207,9 @@ export default function App() {
     }
     try {
       await deleteDoc(doc(db, 'recipes', id));
-      toast.info('Receta eliminada de la nube');
+      toast.success('Receta eliminada de la nube');
     } catch (error) {
-      toast.error('Error al eliminar receta');
+      handleFirestoreError(error, OperationType.DELETE, `recipes/${id}`);
     }
   };
 
@@ -166,7 +224,7 @@ export default function App() {
       await addDoc(collection(db, 'ingredients'), data);
       toast.success('Ingrediente guardado en la nube');
     } catch (error) {
-      toast.error('Error al guardar ingrediente');
+      handleFirestoreError(error, OperationType.CREATE, 'ingredients');
     }
   };
 
@@ -181,7 +239,7 @@ export default function App() {
       await updateDoc(doc(db, 'ingredients', id), data);
       toast.success('Ingrediente actualizado en la nube');
     } catch (error) {
-      toast.error('Error al actualizar ingrediente');
+      handleFirestoreError(error, OperationType.UPDATE, `ingredients/${ingredient.id}`);
     }
   };
 
@@ -193,9 +251,9 @@ export default function App() {
     }
     try {
       await deleteDoc(doc(db, 'ingredients', id));
-      toast.info('Ingrediente eliminado de la nube');
+      toast.success('Ingrediente eliminado de la nube');
     } catch (error) {
-      toast.error('Error al eliminar ingrediente');
+      handleFirestoreError(error, OperationType.DELETE, `ingredients/${id}`);
     }
   };
 
@@ -210,7 +268,7 @@ export default function App() {
       await addDoc(collection(db, 'categories'), data);
       toast.success('Categoría guardada en la nube');
     } catch (error) {
-      toast.error('Error al guardar categoría');
+      handleFirestoreError(error, OperationType.CREATE, 'categories');
     }
   };
 
@@ -225,7 +283,7 @@ export default function App() {
       await updateDoc(doc(db, 'categories', id), data);
       toast.success('Categoría actualizada en la nube');
     } catch (error) {
-      toast.error('Error al actualizar categoría');
+      handleFirestoreError(error, OperationType.UPDATE, `categories/${category.id}`);
     }
   };
 
@@ -243,9 +301,9 @@ export default function App() {
     }
     try {
       await deleteDoc(doc(db, 'categories', id));
-      toast.info('Categoría eliminada de la nube');
+      toast.success('Categoría eliminada de la nube');
     } catch (error) {
-      toast.error('Error al eliminar categoría');
+      handleFirestoreError(error, OperationType.DELETE, `categories/${id}`);
     }
   };
 
@@ -264,40 +322,34 @@ export default function App() {
     const toastId = toast.loading('Cargando datos iniciales...');
 
     try {
+      const batch = writeBatch(db);
+
       // Seed Categories
       for (const cat of INITIAL_CATEGORIES) {
-        const exists = categories.some(c => c.name === cat.name);
-        if (!exists) {
+        const catQuery = query(collection(db, 'categories'), where('name', '==', cat.name));
+        const catSnapshot = await getDocs(catQuery);
+        if (catSnapshot.empty) {
           const { id, ...data } = cat;
-          await addDoc(collection(db, 'categories'), data);
+          const newDocRef = doc(collection(db, 'categories'));
+          batch.set(newDocRef, data);
         }
       }
 
       // Seed Ingredients
       for (const ing of INITIAL_INGREDIENTS) {
-        const exists = ingredients.some(i => i.name === ing.name);
-        if (!exists) {
+        const ingQuery = query(collection(db, 'ingredients'), where('name', '==', ing.name));
+        const ingSnapshot = await getDocs(ingQuery);
+        if (ingSnapshot.empty) {
           const { id, ...data } = ing;
-          await addDoc(collection(db, 'ingredients'), data);
+          const newDocRef = doc(collection(db, 'ingredients'));
+          batch.set(newDocRef, data);
         }
       }
 
-      // Seed Recipes
-      for (const rec of INITIAL_RECIPES) {
-        const exists = recipes.some(r => r.name === rec.name);
-        if (!exists) {
-          const { id, ...data } = rec;
-          // We need to find the new categoryId in the cloud if we want to be perfect,
-          // but for a simple seed, we can assume the user will fix it or we can try to match by name.
-          // For now, let's just add them.
-          await addDoc(collection(db, 'recipes'), data);
-        }
-      }
-
+      await batch.commit();
       toast.success('Base de datos inicializada correctamente', { id: toastId });
     } catch (error) {
-      console.error("Error seeding:", error);
-      toast.error('Error al inicializar la base de datos', { id: toastId });
+      handleFirestoreError(error, OperationType.WRITE, 'batch-seed');
     }
   };
 

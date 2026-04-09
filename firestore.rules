@@ -62,9 +62,10 @@ service cloud.firestore {
 
     function isValidIngredient(data) {
       return data.keys().hasAll(['name', 'unit']) &&
-             data.keys().hasOnly(['name', 'unit']) &&
+             data.keys().hasOnly(['name', 'unit', 'costPerUnit']) &&
              isValidString(data.name, 1, 100) &&
-             data.unit in ['kg', 'g', 'lt', 'ml', 'pza', 'manojo', 'pqte', 'lata', 'frasco'];
+             data.unit in ['kg', 'g', 'lt', 'ml', 'pza', 'manojo', 'pqte', 'lata', 'frasco'] &&
+             (!('costPerUnit' in data) || data.costPerUnit is number);
     }
 
     function isValidCategory(data) {
@@ -75,7 +76,7 @@ service cloud.firestore {
 
     function isValidRecipe(data) {
       return data.keys().hasAll(['name', 'categoryId', 'ingredients']) &&
-             data.keys().hasOnly(['name', 'categoryId', 'ingredients']) &&
+             data.keys().hasOnly(['name', 'categoryId', 'ingredients', 'description']) &&
              isValidString(data.name, 1, 100) &&
              isValidString(data.categoryId, 1, 50) &&
              data.ingredients is list &&
@@ -83,10 +84,12 @@ service cloud.firestore {
     }
 
     function isValidQuote(data) {
-      return data.keys().hasAll(['clientName', 'peopleCount', 'userId']) &&
+      return data.keys().hasAll(['clientName', 'peopleCount', 'userId', 'date', 'items', 'totalCost']) &&
              data.peopleCount is number && data.peopleCount > 0 &&
              data.userId == request.auth.uid &&
              isValidString(data.clientName, 1, 100) &&
+             data.items is list &&
+             data.totalCost is number &&
              (!('notes' in data) || isValidString(data.notes, 0, 1000));
     }
 
