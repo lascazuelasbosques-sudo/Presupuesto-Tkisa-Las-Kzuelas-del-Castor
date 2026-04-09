@@ -98,7 +98,25 @@ export function IngredientCalculator({ recipes, ingredients, categories }: Props
       {selectedRecipe && (
         <Card className="border-accent/20">
           <CardHeader>
-            <CardTitle className="text-lg">Lista de Compra para {numericKg}kg de {selectedRecipe.name}</CardTitle>
+            <CardTitle className="text-lg flex justify-between items-center">
+              <span>Lista de Compra para {numericKg}kg de {selectedRecipe.name}</span>
+              <span className="text-2xl font-bold text-primary">
+                ${sortedCalculatedIngredients.reduce((sum, item) => {
+                  const details = getIngredientDetails(item.ingredientId, ingredients);
+                  return sum + (details ? (details.costPerUnit || 0) * item.totalAmount : 0);
+                }, 0).toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+              </span>
+            </CardTitle>
+            <CardDescription>
+              Costo aproximado por kilo de guisado: ${
+                numericKg > 0 
+                  ? (sortedCalculatedIngredients.reduce((sum, item) => {
+                      const details = getIngredientDetails(item.ingredientId, ingredients);
+                      return sum + (details ? (details.costPerUnit || 0) * item.totalAmount : 0);
+                    }, 0) / numericKg).toLocaleString('es-MX', { minimumFractionDigits: 2 })
+                  : '0.00'
+              }
+            </CardDescription>
           </CardHeader>
           <CardContent>
             <Table>
@@ -107,26 +125,31 @@ export function IngredientCalculator({ recipes, ingredients, categories }: Props
                   <TableHead>Ingrediente</TableHead>
                   <TableHead className="text-right">Cantidad</TableHead>
                   <TableHead>Unidad</TableHead>
-                  <TableHead className="text-right">Costo Est.</TableHead>
+                  <TableHead className="text-right">Precio Unit.</TableHead>
+                  <TableHead className="text-right">Presupuesto</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {sortedCalculatedIngredients.map(item => {
                   const details = getIngredientDetails(item.ingredientId, ingredients);
-                  const itemCost = details ? (details.costPerUnit || 0) * item.totalAmount : 0;
+                  const unitCost = details?.costPerUnit || 0;
+                  const itemCost = unitCost * item.totalAmount;
                   return (
                     <TableRow key={item.ingredientId}>
                       <TableCell className="font-medium">{details?.name || 'Desconocido'}</TableCell>
                       <TableCell className="text-right">{item.totalAmount.toLocaleString()}</TableCell>
                       <TableCell>{details?.unit || '-'}</TableCell>
-                      <TableCell className="text-right font-mono text-sm">
+                      <TableCell className="text-right text-muted-foreground">
+                        ${unitCost.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-sm font-semibold text-primary">
                         ${itemCost.toLocaleString('es-MX', { minimumFractionDigits: 2 })}
                       </TableCell>
                     </TableRow>
                   );
                 })}
                 <TableRow className="bg-primary/5 font-bold text-primary">
-                  <TableCell colSpan={3}>INVERSIÓN TOTAL ESTIMADA</TableCell>
+                  <TableCell colSpan={4} className="text-right uppercase">Total Presupuesto</TableCell>
                   <TableCell className="text-right text-lg">
                     ${sortedCalculatedIngredients.reduce((sum, item) => {
                       const details = getIngredientDetails(item.ingredientId, ingredients);
@@ -135,8 +158,8 @@ export function IngredientCalculator({ recipes, ingredients, categories }: Props
                   </TableCell>
                 </TableRow>
                 <TableRow className="bg-muted/30 text-xs text-muted-foreground italic">
-                  <TableCell colSpan={4}>
-                    * Precios de referencia basados en la Central de Abastos Ecatepec.
+                  <TableCell colSpan={5}>
+                    * Precios de referencia basados en Ké Va Llevar.
                   </TableCell>
                 </TableRow>
               </TableBody>
