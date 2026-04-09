@@ -379,6 +379,16 @@ export default function App() {
         }
       }
 
+      // Seed Recipes
+      for (const rec of INITIAL_RECIPES) {
+        const exists = recipes.some(r => r.name === rec.name);
+        if (!exists) {
+          const { id, ...data } = rec;
+          const newDocRef = doc(collection(db, 'recipes'));
+          batch.set(newDocRef, data);
+        }
+      }
+
       await batch.commit();
       toast.success(`Sincronización completa: ${updatedCount} actualizados, ${addedCount} nuevos.`, { id: toastId });
     } catch (error) {
