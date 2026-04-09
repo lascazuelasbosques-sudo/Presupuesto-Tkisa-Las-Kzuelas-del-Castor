@@ -322,8 +322,6 @@ export default function App() {
     const toastId = toast.loading('Sincronizando precios con Central en Línea...');
 
     try {
-      const batch = writeBatch(db);
-      
       // Fetch all current ingredients to do a case-insensitive comparison
       const currentIngsSnapshot = await getDocs(collection(db, 'ingredients'));
       const currentIngs = currentIngsSnapshot.docs.map(doc => ({
@@ -346,9 +344,12 @@ export default function App() {
         const existingCat = currentCats.find(c => c.name === normalizedName);
         
         if (!existingCat) {
-          const { id, ...data } = cat;
-          const newDocRef = doc(collection(db, 'categories'));
-          batch.set(newDocRef, data);
+          try {
+            const { id, ...data } = cat;
+            await addDoc(collection(db, 'categories'), data);
+          } catch (e) {
+            console.error("Error adding category:", cat.name, e);
+          }
         }
       }
 
@@ -367,15 +368,18 @@ export default function App() {
           lastUpdated: new Date().toISOString()
         };
 
-        if (existingIng) {
-          // Update existing ingredient
-          batch.update(existingIng.ref, ingredientData);
-          updatedCount++;
-        } else {
-          // Add new ingredient
-          const newDocRef = doc(collection(db, 'ingredients'));
-          batch.set(newDocRef, ingredientData);
-          addedCount++;
+        try {
+          if (existingIng) {
+            // Update existing ingredient
+            await updateDoc(existingIng.ref, ingredientData);
+            updatedCount++;
+          } else {
+            // Add new ingredient
+            await addDoc(collection(db, 'ingredients'), ingredientData);
+            addedCount++;
+          }
+        } catch (e) {
+          console.error("Error processing ingredient:", ing.name, e);
         }
       }
 
@@ -383,16 +387,20 @@ export default function App() {
       for (const rec of INITIAL_RECIPES) {
         const exists = recipes.some(r => r.name === rec.name);
         if (!exists) {
-          const { id, ...data } = rec;
-          const newDocRef = doc(collection(db, 'recipes'));
-          batch.set(newDocRef, data);
+          try {
+            const { id, ...data } = rec;
+            await addDoc(collection(db, 'recipes'), data);
+          } catch (e) {
+            console.error("Error adding recipe:", rec.name, e);
+          }
         }
       }
 
-      await batch.commit();
-      toast.success(`Sincronización completa: ${updatedCount} actualizados, ${addedCount} nuevos.`, { id: toastId });
+      toast.dismiss(toastId);
+      toast.success(`Sincronización completa: ${updatedCount} actualizados, ${addedCount} nuevos.`);
     } catch (error) {
-      handleFirestoreError(error, OperationType.WRITE, 'batch-seed');
+      toast.dismiss(toastId);
+      handleFirestoreError(error, OperationType.WRITE, 'seed');
     }
   };
 
