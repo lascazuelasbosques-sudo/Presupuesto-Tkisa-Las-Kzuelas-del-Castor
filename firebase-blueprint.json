@@ -46,8 +46,11 @@
       "description": "A budget or event estimation",
       "type": "object",
       "properties": {
+        "eventName": { "type": "string" },
         "clientName": { "type": "string" },
+        "salesperson": { "type": "string" },
         "date": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" },
         "peopleCount": { "type": "number" },
         "items": {
           "type": "array",
@@ -63,7 +66,7 @@
         "notes": { "type": "string" },
         "userId": { "type": "string" }
       },
-      "required": ["clientName", "peopleCount", "userId"]
+      "required": ["eventName", "clientName", "createdAt", "peopleCount"]
     }
   },
   "firestore": {

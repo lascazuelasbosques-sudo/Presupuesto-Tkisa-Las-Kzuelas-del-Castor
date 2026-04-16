@@ -64,7 +64,7 @@ export function CategoryManager({ categories, isAdmin, onAddCategory, onUpdateCa
             <Button className="gap-2" onClick={openAddDialog}>
               <Plus className="w-4 h-4" /> Nueva Categoría
             </Button>
-            <DialogContent>
+            <DialogContent className="w-[95vw] sm:max-w-md md:max-w-lg">
             <DialogHeader>
               <DialogTitle>{editingCategory ? 'Editar Categoría' : 'Agregar Nueva Categoría'}</DialogTitle>
             </DialogHeader>

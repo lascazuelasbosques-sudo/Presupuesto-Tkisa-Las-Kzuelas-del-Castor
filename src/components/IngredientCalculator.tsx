@@ -4,26 +4,69 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Recipe, Ingredient, Category } from '@/src/types';
+import { Recipe, Ingredient, Category, Quote } from '@/src/types';
 import { calculateIngredientsForKg, getIngredientDetails, calculateKgForPeople, calculatePeopleForKg } from '@/src/lib/calculations';
-import { ChefHat, Scale, Users } from 'lucide-react';
+import { ChefHat, Scale, Users, PlusCircle } from 'lucide-react';
+import { toast } from 'sonner';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   recipes: Recipe[];
   ingredients: Ingredient[];
   categories: Category[];
+  quotes?: Quote[];
+  onUpdateQuote?: (quote: Quote) => void;
 }
 
-export function IngredientCalculator({ recipes, ingredients, categories }: Props) {
+export function IngredientCalculator({ recipes, ingredients, categories, quotes = [], onUpdateQuote }: Props) {
   const sortedRecipes = [...recipes].sort((a, b) => a.name.localeCompare(b.name, 'es', { sensitivity: 'base' }));
   const [selectedRecipeId, setSelectedRecipeId] = useState<string>(sortedRecipes[0]?.id || '');
   const [kg, setKg] = useState<number | string>(1);
+  const [selectedTargetEvent, setSelectedTargetEvent] = useState<string>('');
 
   const selectedRecipe = recipes.find(r => r.id === selectedRecipeId);
   const numericKg = typeof kg === 'string' ? parseFloat(kg) || 0 : kg;
   const calculatedIngredients = selectedRecipe 
     ? calculateIngredientsForKg(selectedRecipe, numericKg)
     : [];
+
+  const handleAddToEvent = () => {
+    if (!selectedTargetEvent || !selectedRecipeId || !numericKg || numericKg <= 0 || !onUpdateQuote) return;
+    
+    const targetQuote = quotes.find(q => q.id === selectedTargetEvent);
+    if (!targetQuote) return;
+
+    const recipe = recipes.find(r => r.id === selectedRecipeId);
+    if (!recipe) return;
+
+    // Calculamos el costo de este guisado
+    const costForNewItem = calculatedIngredients.reduce((sum, item) => {
+      const details = getIngredientDetails(item.ingredientId, ingredients);
+      return sum + (details ? (details.costPerUnit || 0) * item.totalAmount : 0);
+    }, 0);
+
+    // Creamos el nuevo item
+    const newItem = { recipeId: selectedRecipeId, kg: numericKg };
+    
+    // Check if item already exists to sum it up, else append
+    const existingItemIndex = targetQuote.items.findIndex(i => i.recipeId === selectedRecipeId);
+    let newItems = [...targetQuote.items];
+    
+    if (existingItemIndex >= 0) {
+      newItems[existingItemIndex].kg += numericKg;
+    } else {
+      newItems.push(newItem);
+    }
+
+    const updatedQuoteItem = {
+      ...targetQuote,
+      items: newItems,
+      totalCost: targetQuote.totalCost + costForNewItem
+    };
+
+    onUpdateQuote(updatedQuoteItem);
+    toast.success(`${numericKg}kg de ${recipe.name} agregados a ${targetQuote.eventName}`);
+  };
 
   const sortedCalculatedIngredients = [...calculatedIngredients].sort((a, b) => {
     const nameA = getIngredientDetails(a.ingredientId, ingredients)?.name || '';
@@ -181,6 +224,34 @@ export function IngredientCalculator({ recipes, ingredients, categories }: Props
                 </TableRow>
               </TableBody>
             </Table>
+
+            {/* Agregar a evento section */}
+            {onUpdateQuote && quotes.length > 0 && (
+              <div className="mt-6 pt-6 border-t flex flex-col sm:flex-row gap-4 items-end sm:items-center bg-primary/5 p-4 rounded-lg">
+                <div className="flex-1 w-full space-y-2">
+                  <Label>Envia este cálculo a un Evento</Label>
+                  <Select value={selectedTargetEvent} onValueChange={setSelectedTargetEvent}>
+                    <SelectTrigger className="w-full bg-white">
+                      <SelectValue placeholder="Selecciona un evento creado" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {quotes.map(q => (
+                        <SelectItem key={q.id} value={q.id}>
+                          {q.eventName} ({q.clientName})
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button 
+                  onClick={handleAddToEvent} 
+                  disabled={!selectedTargetEvent || calculatedIngredients.length === 0}
+                  className="w-full sm:w-auto gap-2"
+                >
+                  <PlusCircle className="w-4 h-4" /> Agregar Guisado a Evento
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
       )}

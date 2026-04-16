@@ -107,7 +107,7 @@ export function IngredientManager({ ingredients, recipes, isAdmin, onAddIngredie
             <Button className="gap-2 w-full sm:w-auto" onClick={openAddDialog}>
               <Plus className="w-4 h-4" /> Nuevo Ingrediente
             </Button>
-          <DialogContent>
+          <DialogContent className="w-[95vw] sm:max-w-md md:max-w-lg">
             <DialogHeader>
               <DialogTitle>{editingIngredient ? 'Editar Ingrediente' : 'Agregar Nuevo Ingrediente'}</DialogTitle>
             </DialogHeader>

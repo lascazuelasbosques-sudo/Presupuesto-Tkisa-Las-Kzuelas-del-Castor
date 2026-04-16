@@ -112,7 +112,7 @@ export function RecipeManager({ recipes, ingredients, categories, onAddRecipe, o
             <Button className="gap-2 w-full sm:w-auto" onClick={openAddDialog}>
               <Plus className="w-4 h-4" /> Nueva Receta
             </Button>
-            <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+            <DialogContent className="max-h-[90vh] overflow-y-auto w-[95vw] sm:max-w-2xl md:max-w-3xl">
             <DialogHeader>
               <DialogTitle>{editingRecipe ? 'Editar Receta' : 'Agregar Nueva Receta'}</DialogTitle>
             </DialogHeader>

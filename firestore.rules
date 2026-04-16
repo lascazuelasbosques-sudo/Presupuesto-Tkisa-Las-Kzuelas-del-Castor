@@ -21,10 +21,13 @@ service cloud.firestore {
     //
     // Collection: quotes
     // Fields:
+    //   - eventName: string (required, 1-100 chars)
     //   - clientName: string (required, 1-100 chars)
+    //   - salesperson: string (required, 0-100 chars)
     //   - peopleCount: number (required, positive)
     //   - userId: string (required, matches auth.uid)
     //   - date: string (ISO 8601)
+    //   - createdAt: string (ISO 8601)
     //   - items: list
     //   - totalCost: number
     //   - notes: string (optional, max 1000 chars)
@@ -85,10 +88,14 @@ service cloud.firestore {
     }
 
     function isValidQuote(data) {
-      return data.keys().hasAll(['clientName', 'peopleCount', 'userId', 'date', 'items', 'totalCost']) &&
+      return data.keys().hasAll(['eventName', 'clientName', 'salesperson', 'peopleCount', 'userId', 'date', 'createdAt', 'items', 'totalCost']) &&
              data.peopleCount is number && data.peopleCount > 0 &&
              data.userId == request.auth.uid &&
+             isValidString(data.eventName, 1, 100) &&
              isValidString(data.clientName, 1, 100) &&
+             isValidString(data.salesperson, 0, 100) &&
+             data.date is string &&
+             data.createdAt is string &&
              data.items is list &&
              data.totalCost is number &&
              (!('notes' in data) || isValidString(data.notes, 0, 1000));

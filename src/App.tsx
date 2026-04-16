@@ -5,9 +5,10 @@ import { BudgetCalculator } from './components/BudgetCalculator';
 import { RecipeManager } from './components/RecipeManager';
 import { IngredientManager } from './components/IngredientManager';
 import { CategoryManager } from './components/CategoryManager';
+import { EventManager } from './components/EventManager';
 import { INITIAL_INGREDIENTS, INITIAL_RECIPES, INITIAL_CATEGORIES } from './constants';
-import { Recipe, Ingredient, Category } from './types';
-import { Utensils, Calculator, BookOpen, Package, ChefHat, LogIn, LogOut, User, Tags } from 'lucide-react';
+import { Recipe, Ingredient, Category, Quote, QuoteItem } from './types';
+import { Utensils, Calculator, BookOpen, Package, ChefHat, LogIn, LogOut, User, Tags, FileText } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Toaster } from '@/components/ui/sonner';
 import { toast } from 'sonner';
@@ -48,9 +49,10 @@ export default function App() {
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [ingredients, setIngredients] = useState<Ingredient[]>([]);
   const [categories, setCategories] = useState<Category[]>([]);
+  const [quotes, setQuotes] = useState<Quote[]>([]);
   const [user, setUser] = useState<FirebaseUser | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState('calc');
+  const [activeTab, setActiveTab] = useState('events');
 
   const handleFirestoreError = (error: any, operationType: OperationType, path: string | null) => {
     const errInfo: FirestoreErrorInfo = {
@@ -133,10 +135,18 @@ export default function App() {
       handleFirestoreError(error, OperationType.LIST, 'categories');
     });
 
+    const unsubQuotes = onSnapshot(query(collection(db, 'quotes'), where('userId', '==', user.uid)), (snapshot) => {
+      const data = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Quote));
+      setQuotes(data.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()));
+    }, (error) => {
+      handleFirestoreError(error, OperationType.LIST, 'quotes');
+    });
+
     return () => {
       unsubRecipes();
       unsubIngredients();
       unsubCategories();
+      unsubQuotes();
     };
   }, [user]);
 
@@ -307,6 +317,49 @@ export default function App() {
     }
   };
 
+  const handleAddQuote = async (quote: Omit<Quote, 'id' | 'userId'>) => {
+    if (!user) {
+      toast.error('Debes iniciar sesión para crear eventos');
+      return;
+    }
+    try {
+      const quoteWithUser = {
+        ...quote,
+        userId: user.uid
+      };
+      await addDoc(collection(db, 'quotes'), quoteWithUser);
+      toast.success('Evento/Cotización creado');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, 'quotes');
+    }
+  };
+
+  const handleUpdateQuote = async (quote: Quote) => {
+    if (!user) {
+      toast.error('Debes iniciar sesión para editar eventos');
+      return;
+    }
+    try {
+      const { id, ...data } = quote;
+      await updateDoc(doc(db, 'quotes', id), data);
+      toast.success('Evento actualizado en la nube');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, `quotes/${quote.id}`);
+    }
+  };
+
+  const handleDeleteQuote = async (id: string) => {
+    if (!user) {
+      return;
+    }
+    try {
+      await deleteDoc(doc(db, 'quotes', id));
+      toast.success('Evento eliminado de la nube');
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, `quotes/${id}`);
+    }
+  };
+
   const handleSeedDatabase = async () => {
     if (!user) {
       toast.error('Debes iniciar sesión para cargar datos en la nube');
@@ -356,6 +409,7 @@ export default function App() {
       // Seed Ingredients with Force Update
       let updatedCount = 0;
       let addedCount = 0;
+      const ingredientIdMap: Record<string, string> = {}; // Maps INITIAL_INGREDIENTS id to Firestore id
 
       for (const ing of INITIAL_INGREDIENTS) {
         const normalizedName = ing.name.toLowerCase().trim();
@@ -372,10 +426,12 @@ export default function App() {
           if (existingIng) {
             // Update existing ingredient
             await updateDoc(existingIng.ref, ingredientData);
+            ingredientIdMap[ing.id] = existingIng.id;
             updatedCount++;
           } else {
             // Add new ingredient
-            await addDoc(collection(db, 'ingredients'), ingredientData);
+            const docRef = await addDoc(collection(db, 'ingredients'), ingredientData);
+            ingredientIdMap[ing.id] = docRef.id;
             addedCount++;
           }
         } catch (e) {
@@ -383,13 +439,50 @@ export default function App() {
         }
       }
 
-      // Seed Recipes
+      // Fetch categories to map category IDs
+      const updatedCatsSnapshot = await getDocs(collection(db, 'categories'));
+      const categoryIdMap: Record<string, string> = {};
+      updatedCatsSnapshot.docs.forEach(doc => {
+        const name = doc.data().name?.toLowerCase().trim();
+        const initialCat = INITIAL_CATEGORIES.find(c => c.name.toLowerCase().trim() === name);
+        if (initialCat) {
+          categoryIdMap[initialCat.id] = doc.id;
+        }
+      });
+
+      // Fetch all current recipes to fix their ingredient IDs
+      const currentRecipesSnapshot = await getDocs(collection(db, 'recipes'));
+      
       for (const rec of INITIAL_RECIPES) {
-        const exists = recipes.some(r => r.name === rec.name);
-        if (!exists) {
+        const existingRecipeDoc = currentRecipesSnapshot.docs.find(doc => doc.data().name === rec.name);
+        
+        // Map ingredients to use Firestore IDs
+        const mappedIngredients = rec.ingredients.map(ri => ({
+          ingredientId: ingredientIdMap[ri.ingredientId] || ri.ingredientId,
+          amountPerKg: ri.amountPerKg
+        }));
+
+        const mappedCategoryId = categoryIdMap[rec.categoryId] || rec.categoryId;
+
+        if (existingRecipeDoc) {
+          // Fix existing recipe if it has old 'iX' IDs
+          const existingData = existingRecipeDoc.data();
+          const needsFix = existingData.ingredients?.some((ri: any) => ri.ingredientId.startsWith('i')) || existingData.categoryId?.startsWith('c');
+          
+          if (needsFix) {
+            await updateDoc(existingRecipeDoc.ref, {
+              ingredients: mappedIngredients,
+              categoryId: mappedCategoryId
+            });
+          }
+        } else {
           try {
             const { id, ...data } = rec;
-            await addDoc(collection(db, 'recipes'), data);
+            await addDoc(collection(db, 'recipes'), {
+              ...data,
+              ingredients: mappedIngredients,
+              categoryId: mappedCategoryId
+            });
           } catch (e) {
             console.error("Error adding recipe:", rec.name, e);
           }
@@ -444,28 +537,32 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-4xl mx-auto px-4">
+      <main className="max-w-5xl mx-auto px-4">
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <TabsList className="grid grid-cols-5 mb-8 h-auto p-1 bg-secondary/30 rounded-xl">
-            <TabsTrigger value="calc" className="py-3 gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+          <TabsList className="flex flex-wrap sm:flex-nowrap w-full mb-8 h-auto p-1 bg-secondary/30 rounded-xl overflow-x-auto gap-1 justify-start md:justify-center">
+            <TabsTrigger value="events" className="flex-1 min-w-[120px] py-3 gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+              <FileText className="w-4 h-4" />
+              <span>Eventos</span>
+            </TabsTrigger>
+            <TabsTrigger value="calc" className="flex-1 min-w-[120px] py-3 gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <Calculator className="w-4 h-4" />
-              <span className="hidden sm:inline">Ingredientes</span>
+              <span>Ingredientes</span>
             </TabsTrigger>
-            <TabsTrigger value="budget" className="py-3 gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <TabsTrigger value="budget" className="flex-1 min-w-[120px] py-3 gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <Utensils className="w-4 h-4" />
-              <span className="hidden sm:inline">Presupuestos</span>
+              <span>Presupuestos</span>
             </TabsTrigger>
-            <TabsTrigger value="recipes" className="py-3 gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <TabsTrigger value="recipes" className="flex-1 min-w-[120px] py-3 gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <BookOpen className="w-4 h-4" />
-              <span className="hidden sm:inline">Recetario</span>
+              <span>Recetario</span>
             </TabsTrigger>
-            <TabsTrigger value="ingredients" className="py-3 gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <TabsTrigger value="ingredients" className="flex-1 min-w-[120px] py-3 gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <Package className="w-4 h-4" />
-              <span className="hidden sm:inline">Insumos</span>
+              <span>Insumos</span>
             </TabsTrigger>
-            <TabsTrigger value="categories" className="py-3 gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
+            <TabsTrigger value="categories" className="flex-1 min-w-[120px] py-3 gap-2 data-[state=active]:bg-white data-[state=active]:shadow-sm">
               <Tags className="w-4 h-4" />
-              <span className="hidden sm:inline">Categorías</span>
+              <span>Categorías</span>
             </TabsTrigger>
           </TabsList>
 
@@ -477,8 +574,26 @@ export default function App() {
               exit={{ opacity: 0, y: -10 }}
               transition={{ duration: 0.2 }}
             >
+              <TabsContent value="events" className="mt-0">
+                <EventManager 
+                  quotes={quotes}
+                  recipes={recipes}
+                  ingredients={ingredients}
+                  categories={categories}
+                  onAddQuote={handleAddQuote}
+                  onUpdateQuote={handleUpdateQuote}
+                  onDeleteQuote={handleDeleteQuote}
+                  userEmail={user?.email || undefined}
+                />
+              </TabsContent>
               <TabsContent value="calc" className="mt-0">
-                <IngredientCalculator recipes={recipes} ingredients={ingredients} categories={categories} />
+                <IngredientCalculator 
+                  recipes={recipes} 
+                  ingredients={ingredients} 
+                  categories={categories}
+                  quotes={quotes}
+                  onUpdateQuote={handleUpdateQuote}
+                />
               </TabsContent>
               <TabsContent value="budget" className="mt-0">
                 <BudgetCalculator />

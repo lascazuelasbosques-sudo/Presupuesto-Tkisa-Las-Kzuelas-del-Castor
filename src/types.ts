@@ -34,8 +34,12 @@ export interface QuoteItem {
 
 export interface Quote {
   id: string;
+  userId: string;
+  eventName: string;
   clientName: string;
+  salesperson: string;
   date: string;
+  createdAt: string;
   peopleCount: number;
   items: QuoteItem[];
   totalCost: number;
